@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-apk:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -15,118 +15,26 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: "17"
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Gradle
+      - name: Setup Gradle 8.2.2
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.2.2"
+
+      - name: Generate Gradle Wrapper (if missing)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gradle
-
-      - name: Create minimal Android project
-        run: |
-          mkdir -p app/src/main/java/com/guinealab/app
-          mkdir -p app/src/main/res/layout
-
-      - name: Create AndroidManifest.xml
-        run: |
-          cat > app/src/main/AndroidManifest.xml <<'EOF'
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="com.guinealab.app">
-
-              <uses-permission android:name="android.permission.RECORD_AUDIO" />
-
-              <application
-                  android:label="Maninka Translator"
-                  android:icon="@android:drawable/sym_def_app_icon"
-                  android:roundIcon="@android:drawable/sym_def_app_icon"
-                  android:allowBackup="true"
-                  android:supportsRtl="true">
-
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-
-              </application>
-          </manifest>
-          EOF
-
-      - name: Create MainActivity.kt
-        run: |
-          cat > app/src/main/java/com/guinealab/app/MainActivity.kt <<'EOF'
-          package com.guinealab.app
-
-          import android.os.Bundle
-          import androidx.appcompat.app.AppCompatActivity
-
-          class MainActivity : AppCompatActivity() {
-              override fun onCreate(savedInstanceState: Bundle?) {
-                  super.onCreate(savedInstanceState)
-                  setContentView(android.R.layout.simple_list_item_1)
-              }
-          }
-          EOF
-
-      - name: Create Gradle files
-        run: |
-          cat > settings.gradle <<'EOF'
-          rootProject.name = "ManinkaTranslator"
-          include(":app")
-          EOF
-
-          cat > build.gradle <<'EOF'
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath "com.android.tools.build:gradle:8.2.0"
-              }
-          }
-          EOF
-
-          cat > app/build.gradle <<'EOF'
-          plugins {
-              id 'com.android.application'
-          }
-
-          android {
-              namespace "com.guinealab.app"
-              compileSdk 34
-
-              defaultConfig {
-                  applicationId "com.guinealab.app"
-                  minSdk 23
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
-
-              buildTypes {
-                  release {
-                      minifyEnabled false
-                  }
-              }
-          }
-
-          dependencies {
-              implementation "androidx.appcompat:appcompat:1.6.1"
-          }
-          EOF
+          gradle wrapper --gradle-version 8.2.2
+          chmod +x ./gradlew
 
       - name: Build Debug APK
         run: |
-          ./gradlew :app:assembleDebug
+          ./gradlew :app:assembleDebug --stacktrace
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
